@@ -1,0 +1,14 @@
+/target/
+.mvn/
+*.class
+.project
+.classpath
+.settings/
+.idea/
+*.iml
+.vscode/
+.DS_Store
+.factorypath
+bin/
+dependency-reduced-pom.xml
+roadmap.md
