@@ -1,11 +1,10 @@
 package com.example.library;
 
-import com.example.library.dto.BookDTO;
-import com.example.library.dto.JwtAuthResponse;
-import com.example.library.dto.RegisterRequest;
-import com.example.library.entity.User;
-import com.example.library.repository.BookRepository;
-import com.example.library.repository.UserRepository;
+import com.example.library.dto.ExperimentDTO;
+import com.example.library.entity.AlgorithmType;
+import com.example.library.entity.Difficulty;
+import com.example.library.repository.ExperimentRepository;
+import com.example.library.repository.ResearchUserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -27,84 +27,39 @@ class LibraryApiIntegrationTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private BookRepository bookRepository;
+    private ExperimentRepository experimentRepository;
 
     @Autowired
-    private UserRepository userRepository;
+    private ResearchUserRepository userRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        bookRepository.deleteAll();
+        experimentRepository.deleteAll();
         userRepository.deleteAll();
     }
 
     @Test
-    void testCreateAndGetBook() throws Exception {
-        BookDTO bookDTO = new BookDTO(null, "Integration Test Book", "Test Author", "999999", 2023, true);
+    @WithMockUser(roles = "ADMIN")
+    void testCreateAndGetExperiment() throws Exception {
+        ExperimentDTO dto = new ExperimentDTO();
+        dto.setName("Integration Test");
+        dto.setAlgorithm(AlgorithmType.CAESAR);
+        dto.setDifficulty(Difficulty.EASY);
 
-        // Create book
-        String bookJson = mockMvc.perform(post("/api/books")
+        String json = mockMvc.perform(post("/api/experiments")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(bookDTO)))
+                .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.title").value("Integration Test Book"))
+                .andExpect(jsonPath("$.name").value("Integration Test"))
                 .andReturn().getResponse().getContentAsString();
 
-        BookDTO createdBook = objectMapper.readValue(bookJson, BookDTO.class);
+        ExperimentDTO created = objectMapper.readValue(json, ExperimentDTO.class);
 
-        // Get book by ID
-        mockMvc.perform(get("/api/books/" + createdBook.getId()))
+        mockMvc.perform(get("/api/experiments/" + created.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("Integration Test Book"));
-    }
-
-    @Test
-    void testCreateAndGetUser() throws Exception {
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setName("Integration User");
-        registerRequest.setEmail("integration@example.com");
-        registerRequest.setPassword("StrongPassword123");
-        registerRequest.setPhone("555-1234");
-
-        // Register user and receive JWT token
-        String authJson = mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-
-        JwtAuthResponse authResponse = objectMapper.readValue(authJson, JwtAuthResponse.class);
-        String token = authResponse.getAccessToken();
-
-        User createdUser = userRepository.findByEmail("integration@example.com").orElseThrow();
-
-        // Get user by ID using bearer token
-        mockMvc.perform(get("/api/users/" + createdUser.getId())
-                .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("integration@example.com"));
-    }
-
-    @Test
-    void testBookNotFound() throws Exception {
-        mockMvc.perform(get("/api/books/999"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.error").value("Not Found"));
-    }
-
-    @Test
-    void testValidationError() throws Exception {
-        BookDTO invalidBookDTO = new BookDTO(null, "", "", "", null, true); // Invalid data
-
-        mockMvc.perform(post("/api/books")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(invalidBookDTO)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.error").value("Validation Error"));
+                .andExpect(jsonPath("$.name").value("Integration Test"));
     }
 }

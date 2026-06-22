@@ -3,10 +3,10 @@ package com.example.library.controller;
 import com.example.library.dto.JwtAuthResponse;
 import com.example.library.dto.LoginRequest;
 import com.example.library.dto.RegisterRequest;
-import com.example.library.entity.User;
+import com.example.library.entity.ResearchUser;
 import com.example.library.security.JwtTokenProvider;
 import com.example.library.security.Role;
-import com.example.library.service.UserService;
+import com.example.library.service.ResearchUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +17,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
-
 import java.util.Collections;
 
 @RestController
@@ -31,7 +30,7 @@ public class AuthController {
     private JwtTokenProvider tokenProvider;
 
     @Autowired
-    private UserService userService;
+    private ResearchUserService researchUserService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -39,7 +38,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<JwtAuthResponse> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
+                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -49,16 +48,14 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<JwtAuthResponse> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
-        User user = new User();
-        user.setName(registerRequest.getName());
-        user.setEmail(registerRequest.getEmail());
+        ResearchUser user = new ResearchUser();
+        user.setUsername(registerRequest.getUsername());
         user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
-        user.setPhone(registerRequest.getPhone());
-        user.setRoles(Collections.singleton(Role.USER));
+        user.setRoles(Collections.singleton(Role.RESEARCHER));
 
-        userService.save(user);
+        researchUserService.save(user);
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(registerRequest.getEmail(), registerRequest.getPassword())
+                new UsernamePasswordAuthenticationToken(registerRequest.getUsername(), registerRequest.getPassword())
         );
         String jwt = tokenProvider.generateToken(authentication.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(new JwtAuthResponse(jwt));
